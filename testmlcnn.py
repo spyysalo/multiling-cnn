@@ -74,10 +74,6 @@ def main(argv):
 
     pred_Y = model.predict(test_X, verbose=0)
 
-    # TODO cut this
-    loss, acc = model.evaluate(test_X, test_Y, verbose=0)
-    print('accuracy:\t{:.4f}'.format(acc))
-
     acc = (np.argmax(pred_Y, axis=1) == np.argmax(test_Y, axis=1)).mean()
     print('accuracy:\t{:.4f}'.format(acc))
 
@@ -85,10 +81,12 @@ def main(argv):
     for c in range(num_classes):
         try:
             auc = roc_auc_score(test_Y[:, c], pred_Y[:, c])
-            print('{} AUC:\t{:.4f}'.format(idx_to_label[c], auc))
-            aucs.append(auc)
         except:
-            print('{} AUC:\tN/A'.format(idx_to_label[c]))
+            warning('error calculating AUC for {}, treating as 0'.format(
+                idx_to_label[c], auc))
+            auc = 0
+        print('{} AUC:\t{:.4f}'.format(idx_to_label[c], auc))
+        aucs.append(auc)
     print('average AUC:\t{:.4f}'.format(np.mean(aucs)))
 
     return 0
