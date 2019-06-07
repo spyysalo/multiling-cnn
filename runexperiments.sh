@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Run English-Finnish experiments for Nodalida'19.
+# Run experiments for Nodalida'19.
 
 
-EVALSET=dev    # set to "test" for final experiments
+EVALSET=test    # set to "test" for final experiments
 
 
 set -euo pipefail
@@ -25,6 +25,41 @@ WORD_VECS="fi:$WVDIR/wiki.multi.fi.vec,en:$WVDIR/wiki.multi.en.vec"
 mkdir -p "$MODELDIR"
 mkdir -p "$RESULTDIR"
 
+
+# Finnish w/subsets
+total=$(wc -l < "$DATADIR/fi-train.ft")
+for p in `seq 10 10 100`; do
+    lines=$((p*total/100));
+    shuf "$DATADIR/fi-train.ft" | head -n $lines \
+        > "$DATADIR/fi-train-${p}p.ft" || true
+
+    python3 "$SCRIPTDIR/trainmlcnn.py" \
+	    --epochs "$EPOCHS" \
+	    --limit "$MAX_WORDS" \
+	    --word-vectors "$WORD_VECS" \
+	    --input "fi:$DATADIR/fi-train-${p}p.ft" \
+	    --output "$MODELDIR/fi-${p}p.model"
+
+    python3 "$SCRIPTDIR/testmlcnn.py" \
+	    "$MODELDIR/fi-${p}p.model" \
+	    "fi:$DATADIR/fi-${EVALSET}.ft" \
+	| tee -a "$RESULTDIR/fi-${p}p.txt"
+done
+
+
+for p in `seq 10 10 100`; do
+    python3 "$SCRIPTDIR/trainmlcnn.py" \
+	    --epochs "$EPOCHS" \
+	    --limit "$MAX_WORDS" \
+	    --word-vectors "$WORD_VECS" \
+	    --input "fi:$DATADIR/fi-train-${p}p.ft,en:$DATADIR/en-train.ft" \
+	    --output "$MODELDIR/combo-${p}p.model"
+
+    python3 "$SCRIPTDIR/testmlcnn.py" \
+	    "$MODELDIR/combo-${p}p.model" \
+	    "fi:$DATADIR/fi-${EVALSET}.ft" \
+	| tee -a "$RESULTDIR/combo-fi-${p}p.txt"
+done
 
 # Finnish
 python3 "$SCRIPTDIR/trainmlcnn.py" \
@@ -57,5 +92,19 @@ python3 "$SCRIPTDIR/testmlcnn.py" \
 # English -> Finnish
 python3 "$SCRIPTDIR/testmlcnn.py" \
 	"$MODELDIR/en.model" \
-	"en:$DATADIR/fi-${EVALSET}.ft" \
+	"fi:$DATADIR/fi-${EVALSET}.ft" \
     | tee -a "$RESULTDIR/en-fi.txt"
+
+
+# English+Finnish -> Finnish
+python3 "$SCRIPTDIR/trainmlcnn.py" \
+	--epochs "$EPOCHS" \
+	--limit "$MAX_WORDS" \
+	--word-vectors "$WORD_VECS" \
+	--input "fi:$DATADIR/fi-train.ft,en:$DATADIR/en-train.ft" \
+	--output "$MODELDIR/combo.model"
+
+python3 "$SCRIPTDIR/testmlcnn.py" \
+	"$MODELDIR/combo.model" \
+	"fi:$DATADIR/fi-${EVALSET}.ft" \
+    | tee -a "$RESULTDIR/combo-fi.txt"
