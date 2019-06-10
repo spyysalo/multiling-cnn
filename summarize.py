@@ -37,7 +37,7 @@ def process(path):
             grouped[fields[0]].append(value)
     name = os.path.splitext(os.path.basename(path))[0]
     # print('file\tavg\tstdev\tvalue\tcount\tvalue ...')
-    for label, values in grouped.items():
+    for label, values in sorted(grouped.items()):
         floats = [float(v) for v in values]
         print('{}\t{}\t{:.4f}\t{:.4f}\t{}\t{}'.format(
             name, label, np.mean(floats), np.std(floats), len(floats),
